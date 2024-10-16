@@ -5,6 +5,7 @@ const {
     ContractCreateTransaction,
     ContractFunctionParameters,
     ContractCallQuery,
+    ContractExecuteTransaction,
 } = require("@hashgraph/sdk");
 
 require('dotenv').config();
@@ -60,7 +61,7 @@ async function environmentSetup() {
         //Set the file ID of the Hedera file storing the bytecode
         .setBytecodeFileId(bytecodeFileId)
         //Set the gas to instantiate the contract
-        .setGas(100000)
+        .setGas(1000000)
         //Provide the constructor parameters for the contract
         .setConstructorParameters(new ContractFunctionParameters().addString("Hello from Hedera!"));
 
@@ -96,6 +97,45 @@ async function environmentSetup() {
 
     //Log the message
     console.log("The contract message: " + message);
+
+    //Create the transaction to update the contract message
+    const contractExecTx = await new ContractExecuteTransaction()
+        //Set the ID of the contract
+        .setContractId(newContractId)
+        //Set the gas for the contract call
+        .setGas(100000)
+        //Set the contract function to call
+        .setFunction("set_message", new ContractFunctionParameters().addString("Hello from Hedera again!"));
+
+    //Submit the transaction to a Hedera network and store the response
+    const submitExecTx = await contractExecTx.execute(client);
+
+    //Get the receipt of the transaction
+    const receipt2 = await submitExecTx.getReceipt(client);
+
+    //Confirm the transaction was executed successfully 
+    console.log("The transaction status is " + receipt2.status.toString());
+
+    //Query the contract for the contract message
+    const contractCallQuery = new ContractCallQuery()
+        //Set the ID of the contract to query
+        .setContractId(newContractId)
+        //Set the gas to execute the contract call
+        .setGas(100000)
+        //Set the contract function to call
+        .setFunction("get_message")
+        //Set the query payment for the node returning the request
+        //This value must cover the cost of the request otherwise will fail 
+        .setQueryPayment(new Hbar(2));
+
+    //Submit the transaction to a Hedera network 
+    const contractUpdateResult = await contractCallQuery.execute(client);
+
+    //Get the updated message at index 0
+    const message2 = contractUpdateResult.getString(0);
+
+    //Log the updated message to the console
+    console.log("The updated contract message: " + message2);
 
     //v2 Hedera JavaScript SDK
 }
